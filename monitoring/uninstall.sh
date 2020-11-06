@@ -1,0 +1,1 @@
+sudo systemctl stop nodeexporter.service && sudo systemctl stop rpi_exporter.service && sudo rm /etc/systemd/system/nodeexporter.service && sudo rm /etc/systemd/system/rpi_exporter.service

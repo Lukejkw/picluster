@@ -1,0 +1,10 @@
+
+[Unit]
+Description=RPiExporter
+
+[Service]
+TimeoutStartSec=0
+ExecStart=/usr/local/bin/rpi_exporter
+
+[Install]
+WantedBy=multi-user.target
