@@ -1,5 +1,17 @@
 # PiCluster
 
+## NFS Client Provisioner
+
+### Install NFS Server on NFS Host
+
+TODO
+
+### Install NFS Client Provisioner in Cluster
+
+###
+
+https://github.com/ckotzbauer/helm-charts/tree/master/charts/nfs-client-provisioner
+
 ## Monitoring
 
 https://github.com/carlosedp/cluster-monitoring
@@ -31,3 +43,12 @@ https://github.com/MoJo2600/pihole-kubernetes
 Configured to used
 
 DNS IP: 192.168.1.101
+
+## Torrenting
+
+## Laptop
+
+Username: cluster
+Pass: picluster
+IP: 192.168.1.104
+Node4

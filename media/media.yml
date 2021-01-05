@@ -1,0 +1,211 @@
+
+
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: transmission-downloads-pvc
+  namespace: media
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: nfs-client
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: media
+  name: transmission-openvpn-deployment
+spec:
+  selector:
+    matchLabels:
+      app: transmission-openvpn
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: transmission-openvpn
+    spec:
+      terminationGracePeriodSeconds: 10
+      dnsPolicy: "None"
+      dnsConfig:
+        nameservers:
+          - 192.168.1.101
+          - 8.8.8.8
+          - 8.8.4.4
+      containers:
+      - image: haugene/transmission-openvpn
+        name: transmission-openvpn
+        securityContext:
+          capabilities:
+            add:
+              - NET_ADMIN
+        ports:
+        - containerPort: 9091
+        env:
+        - name: PUID
+          value: "1020"
+        - name: PGID
+          value: "1020"
+        - name: CREATE_TUN_DEVICE
+          value: "true"
+        - name: OPENVPN_PROVIDER
+          value: "EXPRESSVPN"
+        - name: OPENVPN_USERNAME
+          value: "a6hxwdysnvupjk2xmc1851ax"
+        - name: OPENVPN_PASSWORD
+          value: "nf77revsv2dcfcaxsbr2wc56"
+        - name: WEBPROXY_ENABLED
+          value: "false"
+        - name: WEBPROXY_PORT
+          value: "8888"
+        - name: OPENVPN_CONFIG
+          value: "my_expressvpn_south_africa_udp"
+        - name: LOCAL_NETWORK
+          value: "192.168.1.0/24"
+        - name: TRANSMISSION_HOME
+          value: "/transmissionvpn"
+        - name: TRANSMISSION_RPC_WHITELIST
+          value: "127.0.0.1,192.168.1.*"
+        - name: "TRANSMISSION_RPC_WHITELIST_ENABLED"
+          value: "false"
+        - name: TRANSMISSION_RPC_HOST_WHITELIST
+          value: "*"
+        - name: TRANSMISSION_RPC_HOST_WHITELIST_ENABLED
+          value: "false"
+        - name: TRANSMISSION_RPC_AUTHENTICATION_REQUIRED
+          value: "true"
+        - name: TRANSMISSION_RPC_USERNAME
+          value: "admin"
+        - name: TRANSMISSION_RPC_PASSWORD
+          value: "admin"
+        - name: OPENVPN_OPTS
+          value: "--inactive 3600 --ping 10 --ping-exit 60 --mssfix 1500"
+        volumeMounts:
+        - name: downloads
+          mountPath: /data
+        resources:
+            requests:
+              memory: "512Mi"
+              cpu: "1"
+            limits:
+              memory: "512Mi"
+              cpu: "2.5"
+      restartPolicy: Always
+      volumes:
+        - name: downloads
+          persistentVolumeClaim:
+            claimName: transmission-downloads-pvc
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: transmission-openvpn-service
+  namespace: media
+spec:
+  type: NodePort
+  ports:
+  - port: 9091
+    nodePort: 30180
+    name: http
+  selector:
+    app: transmission-openvpn
+
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: jellyfin-config
+  namespace: media
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: nfs-client
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jellyfin
+  namespace: media
+spec:
+  selector:
+    matchLabels:
+      app: jellyfin
+  template:
+    metadata:
+      labels:
+        app: jellyfin
+    spec:
+      # nodeSelector:
+      #   arch: x86
+      containers:
+      - env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        image: docker.io/jellyfin/jellyfin
+        imagePullPolicy: IfNotPresent
+        name: jellyfin
+        ports:
+        - containerPort: 8096
+          protocol: TCP
+        volumeMounts:
+        - mountPath: /data/media
+          name: media
+          readOnly: True
+        - mountPath: /config
+          name: jellyfin-config
+        resources:
+          requests:
+            memory: "1024Mi"
+            cpu: "1"
+          limits:
+            memory: "4096Mi"
+            cpu: "3"
+      restartPolicy: Always
+      volumes:
+      - name: media
+        persistentVolumeClaim:
+          claimName: transmission-downloads-pvc
+      - name: jellyfin-config
+        persistentVolumeClaim:
+          claimName: jellyfin-config
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: jellyfin-service
+  namespace: media
+spec:
+  type: NodePort
+  ports:
+  - port: 8096
+    nodePort: 30181
+    protocol: TCP
+    name: web
+  selector:
+    app: jellyfin
